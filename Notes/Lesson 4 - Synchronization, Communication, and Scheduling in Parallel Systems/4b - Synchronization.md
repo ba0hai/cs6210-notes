@@ -201,18 +201,159 @@ If the one processor with the lock releases it, **all contending processors will
 
 ## 10. Spinlocks with Delay 
 
+There is another approach to reducing contention for a given lock: implementing a delay. Each processor will wait before it contends for a lock, even if the processor detects that the lock is available. 
+
+### Delay after Lock Release 
+
+```cpp
+while ((L == locked) || (test_and_set(L) == locked)) {
+	while (L == locked); // locally spinning until the lock has been released
+	delay(d[P_id]); // once lock is released, we delay for some time assigned to processor ID
+}
+```
+
+Here, the delay is a function of processor ID, meaning that each processor delays lock acquisition for a different amount of time. However, because this is a static delay time, some time can be wasted on the delay process. We can, instead, perform a dynamic delay. 
+
+### Delay with exponential backoff (?) 
+
+```cpp
+while (test_and_set(L) == locked) {
+	delay(d);
+	d = d * 2;
+}
+```
+
+When the lock is not highly contended for, the processor will not delay for very long. But with repeated checks (and failures to acquire) the lock, the processor will delay the acquisition for a little bit longer. 
+
+### Summary 
+
+Because these spinlock algorithms do not require cache access, they can be implemented on a non-cache coherent processor. Generally speaking, if there is a lot of contention, then static assignment of delay might be better than exponential delay with backoff--but in general, any delay implementation improves a naive spinlock algorithm. 
 ## 11. Ticket Lock
 
+If multiple processors are waiting on the lock, then the lock should be acquired by the processor which has waited the longest amount of time. However, the spinlock does not keep track of how long each thread has been waiting for the lock--the threads are **indistinguishable** from one another. 
+### Ensuring fairness in lock acquisition 
+The ticket lock algorithm is simply the implementation of a ticketing system. 
+```cpp
+struct lock { // add new data fields to the lock
+	int next_ticket;
+	int now_serving;
+};
+release_lock(L) {
+	L->now_serving++; // every thread performs a release_lock after it is done
+}
+acquire_lock(L) {
+	int my_ticket = fetch_and_inc(L->next_ticket); // acquire a lock by marking the current position. this is the "get_ticket" step of the ticket lock.
+	loop: // delay like in spinlock with delay. 
+		pause(my_ticket - L->now_serving); // pausing for an amount of time determined by the ticket and now_serving value
+		if (L->now_serving == my_ticket) return; // acquire the lock when the ticket == now_serving
+}
+```
+
+The `acquire_lock` algorithm is implemented in three steps: 
+1. First, **acquire a ticket.** Here, this is done by retrieving and incrementing the next ticket in the `lock` structure. 
+2. Now, **spin on the lock.** We spin until the `my_ticket` value is equal to the `now_serving` value. `now_serving` is updated every time the lock is released in the `release_lock` function. 
+3. When `L->now_serving == my_ticket`, we can successfully acquire the lock. 
+
+While the algorithm preserves fairness, every time the lock is released, the `now_serving` value is going to be updated by the cache coherence mechanism, which causes contention on the network. We have not reduced the contention that can happen on the network when a lock is released because the `now_serving` is repeatedly updated across the private caches of all the processors in the system. 
 ## 12. Spinlock Summary 
 
+Our first two spinlock algorithms--read with test-and-set, as well as test-and-set with delay--reduces contention for the resource but does not guarantee **fairness**, and our final spinlock algorithm, the ticket lock, guarantees fairness but does not reduce contention on the network. 
+
+To further illustrate the limitations of spinlock algorithms, consider the following example. Say that, in a set of N threads ($T_{1}...T_{n}$). Say that $T_1$ has acquired a lock. As per the spinlock algorithms, to some extent the remaining threads $T_2$ to $T_n$ are now waiting on the lock to be released. However, **only one thread will be able to acquire the lock after $T_1$ has released it.** Why should more than one thread contend for the lock? 
+
+Ideally, when $T_1$ releases the lock, it will signal ONLY one other lock between $T_2$ and $T_n$ to retrieve the next thread, rather than signalling all $n-1$ threads at the same time.  It is this idea that lays the foundation for **queueing locks**. 
 ## 13. Array Based Queueing Lock 
+
+![[L04_13_A.png]]
+
+This is also known as **Andersen's lock**. 
+
+First, associated with each lock $L$ is an **array of flags** `flags`. The size of this array `flags` is equal to the **number of processes in the SMP**. If you have an $N$-way multiprocessor, then you have $N$ elements in the circular flags array. This flags array serves as a circular queue for enqueueing the requesters that are requesting access to lock $L$. 
+
+Each element in this `flags` array can be in one of two states: 
+1. `has_lock` - whichever processor that happens to be waiting on this slot is waiting on a particular slot has the lock $L$.
+2. `must_wait` - if the processor can only use `must_wait` as an entrypoint into the `flags` array, then this processor must wait on the lock $L$. 
+
+There can be exactly **one** processor that can be in the `has_lock` state, while all other processors are in the `must_wait` state. This is because the lock $L$ is mutually exclusive. In order to initialize the lock, we have to initialize the array data structure `flags`, which marks **one** slot as `has_lock` while marking the others as `must_wait`. 
+
+One important note: the slots are **not** statically associated with any processor. While there is a unique spot available **for every waiting processor**, they are not statically assigned to the processor at run-time. 
 
 ## 14. Array Based Queueing Lock (cont) 
 
-### Topic
+### The `queuelast` variable
 
+The `queuelast` variable points at the next open slot in the `flags` array. Each time a processor requests a lock, the `queuelast` variable is incremented once. 
+
+|             |                                      |                                                          |      |      |      |      |      |      |      |
+| ----------- | ------------------------------------ | -------------------------------------------------------- | ---- | ---- | ---- | ---- | ---- | ---- | ---- |
+| **idx**     | 0                                    | 1                                                        | 2    | 3    | 4    | 5    | 6    | 7    | 8    |
+| **state**   | `HL`                                 | `MW`                                                     | `MW` | `MW` | `MW` | `MW` | `MW` | `MW` | `MW` |
+| **pointer** | $P_1$<br>current <br>lock <br>holder | `queuelast`<br>future requ<br>-estors must<br>queue here |      |      |      |      |      |      |      |
+
+Say that some processor $P_x$ arrives and requests the same lock. Every time that some processor $P_x$ requests lock acquisition, we update the **pointer** and the `queuelast` variable to point to the next space in the array that the next contending processor will occupy. 
+
+|             |                                      |       |           |           |            |                                                          |      |      |      |
+| ----------- | ------------------------------------ | ----- | --------- | --------- | ---------- | -------------------------------------------------------- | ---- | ---- | ---- |
+| **idx**     | 0                                    | 1     | 2         | 3         | 4          | 5                                                        | 6    | 7    | 8    |
+| **state**   | `HL`                                 | `MW`  | `MW`      | `MW`      | `MW`       | `MW`                                                     | `MW` | `MW` | `MW` |
+| **pointer** | $P_1$<br>current <br>lock <br>holder | $P_x$ | $P_{x+1}$ | $P_{x+2}$ | $P_{mine}$ | `queuelast`<br>future requ<br>-estors must<br>queue here |      |      |      |
+
+```cpp 
+Lock(L){
+	myplace = fetch_and_inc(L->queuelast); // mark my place in the array
+}
+```
+
+The `Lock` algorithm for the array-based queueing lock will follow as such. 
+When we make a lock request, we mark our place in the `flags` array using an atomic instruction (to prevent race conditions between contending processors), `fetch_and_increment` on the `queuelast` variable. By calling `fetch_and_inc` on the `queuelast`, we not only retrieve our own place in the queue (through the `fetch` operation), but we also increment the `queuelast` variable to point to the next available spot in the array. 
+
+If the architecture does not support `fetch_and_increment`, we will have to simulate the operation using `test_and_increment` instructions instead. 
+
+Once we have marked our position in the `flags` array, we will now **wait for our turn**. In other words, we are spinning on our thread's assigned slot until the state changes from `must_wait` to `has_lock`. 
+
+```cpp
+Lock(L){
+	myplace = fetch_and_inc(L->queuelast); // mark my place in the array
+	while(flags[myplace % N] == MW); // stop spinning once MW becomes HL
+}
+
+```
 ## 15. Array Based Queueing Lock (cont) 
 ### Topic
+
+What happens when the lock is released? Let's take a look at the `unlock` operation. 
+
+```cpp
+Lock(L){
+	myplace = fetch_and_inc(L->queuelast); // mark my place in the array
+	while(flags[myplace % N] == MW); // stop spinning once MW becomes HL
+}
+
+unlock(L){
+	flags[current % N] = MW; 
+	flags[(current + 1) % N] = HL;
+}
+```
+
+What happens here is that when $P_1$ is finished working on the lock, it will call the `unlock` operation on the lock, which will do two things: 
+1. Changes `flags[P_1]->state` to `MW`
+2. Changes `flags[P_1 + 1]->state` to `HL`
+
+This updates our array to the following state: 
+
+|             |           |                                     |           |           |            |                                                          |      |      |      |
+| ----------- | --------- | ----------------------------------- | --------- | --------- | ---------- | -------------------------------------------------------- | ---- | ---- | ---- |
+| **idx**     | 0         | 1                                   | 2         | 3         | 4          | 5                                                        | 6    | 7    | 8    |
+| **state**   | `MW`      | `HL`                                | `MW`      | `MW`      | `MW`       | `MW`                                                     | `MW` | `MW` | `MW` |
+| **pointer** | $P_1$<br> | $P_x$<br>current <br>lock<br>holder | $P_{x+1}$ | $P_{x+2}$ | $P_{mine}$ | `queuelast`<br>future requ<br>-estors must<br>queue here |      |      |      |
+
+Recall that the `flags` array is a **circular** queue. This means that the state of `HL` is 'circled' around all of the available slots of the array from start to finish. When the predecessor of $P_{mine}$ acquires the lock, the state of the array looks like: 
+
+|             |           |       |           |                                        |               |                                                          |      |      |      |
+| ----------- | --------- | ----- | --------- | -------------------------------------- | ------------- | -------------------------------------------------------- | ---- | ---- | ---- |
+| **idx**     | 0         | 1     | 2         | 3                                      | 4             | 5                                                        | 6    | 7    | 8    |
+| **state**   | `MW`      | `MW`  | `MW`      | `HL`                                   | `MW`          | `MW`                                                     | `MW` | `MW` | `MW` |
+| **pointer** | $P_1$<br> | $P_x$ | $P_{x+1}$ | $P_{x+2}$<br>current<br>lock<br>holder | $P_{current}$ | `queuelast`<br>future requ<br>-estors must<br>queue here |      |      |      |
 
 ## 16. Link Based Queueing Lock 
 

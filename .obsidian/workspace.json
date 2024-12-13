@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "readme.md",
+                "file": "Notes/Lesson 4 - Synchronization, Communication, and Scheduling in Parallel Systems/4b - Synchronization.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "readme"
+              "title": "4b - Synchronization"
             }
           }
         ]
@@ -164,13 +164,25 @@
   },
   "active": "618acb88ddf33216",
   "lastOpenFiles": [
+    "Notes/Lesson 4 - Synchronization, Communication, and Scheduling in Parallel Systems/4c - Communiction.md",
+    "Papers/Lesson 4 - Synchronization, Communication, and Scheduling in Parallel Systems/Lightweight Remote Procedure Call.pdf",
+    "Papers/Lesson 4 - Synchronization, Communication, and Scheduling in Parallel Systems/Corey_ An Operating System for Many Cores.pdf",
+    "Papers/Lesson 4 - Synchronization, Communication, and Scheduling in Parallel Systems/Cellular Disco_ resource management using virtual clusters on shared-memory multiprocessors.pdf",
+    "Papers/Lesson 4 - Synchronization, Communication, and Scheduling in Parallel Systems/Algorithms for Scalable Synchronization on Shared-Memory Multiprocessors.pdf",
+    "Papers/Lesson 4 - Synchronization, Communication, and Scheduling in Parallel Systems/Using Processor-Cache Affinity Information in Shared Memory Multiprocessor Scheduling.pdf",
+    "Papers/Lesson 4 - Synchronization, Communication, and Scheduling in Parallel Systems/Performance of Multithreaded Chip Multiprocessors and Implications for Operating System Design.pdf",
+    "Papers/Lesson 4 - Synchronization, Communication, and Scheduling in Parallel Systems/Maximizing Locality and Concurrency in a Shared Memory Multiprocessor Operating System.pdf",
+    "Notes/Lesson 4 - Synchronization, Communication, and Scheduling in Parallel Systems/Paper Questions.md",
+    "Notes/Lesson 4 - Synchronization, Communication, and Scheduling in Parallel Systems/Algorithms for Scalable Synchronization on Shared-Memory Multiprocessors.md",
+    "Notes/Lesson 4 - Synchronization, Communication, and Scheduling in Parallel Systems/4b - Synchronization.md",
+    "Notes/Lesson 4 - Synchronization, Communication, and Scheduling in Parallel Systems/Cooperating Sequential Processes.md",
+    "Notes/Images/L04_13_A.png",
     "Notes/Lesson 4 - Synchronization, Communication, and Scheduling in Parallel Systems/4a - Shared Memory Machines.md",
     "readme.md",
     "Pasted image 20241211110212.png",
     "Notes/Images/L04A_01_03.png",
     "Notes/Images/L04A_01_02.png",
     "Notes/Images/L04A_01_01.png",
-    "Notes/Lesson 4 - Synchronization, Communication, and Scheduling in Parallel Systems/4c - Communiction.md",
     "Notes/Lesson 3 - Virtualization/3b - Memory Virtualization.md",
     "Notes/Lesson 4 - Synchronization, Communication, and Scheduling in Parallel Systems/4f - Shared Memory Multiprocessor OS.md",
     "Notes/Revision/Personal Notes on P3L1 OMSCS6200.md",
@@ -180,12 +192,10 @@
     "Notes/Revision/assets/P03L01-082.png",
     "Notes/Revision/assets/P03L01-081.png",
     "Notes/Revision/assets/P03L01-080.png",
-    "Notes/Revision/assets/P03L01-079.png",
     "Notes/Revision/assets",
     "Notes/Lesson 4 - Synchronization, Communication, and Scheduling in Parallel Systems/4d - Lightweight RPC.md",
     "Notes/Revision",
     "Notes/Lesson 4 - Synchronization, Communication, and Scheduling in Parallel Systems/4e - Scheduling.md",
-    "Notes/Lesson 4 - Synchronization, Communication, and Scheduling in Parallel Systems/Paper Questions.md",
     "Notes/Lesson 5 - Communication Mechanisms in Distributed Systems/5e - Systems from Components.md",
     "Notes/Lesson 5 - Communication Mechanisms in Distributed Systems/5d - Active Networks.md",
     "Notes/Lesson 5 - Communication Mechanisms in Distributed Systems/5c - Latency Limits.md",
@@ -198,17 +208,6 @@
     "Notes/Lesson 2 - OS Structures/Review.md",
     "Notes/Notes Approach.md",
     "Notes/Lesson 11 - Security/11b - Security in Andrew.md",
-    "Notes/Untitled.md",
-    "Notes/Lesson 11 - Security/11a - Principles of Information Security.md",
-    "Notes/Lesson 10 - Real-time and Multimedia/10b - PTS.md",
-    "Notes/Lesson 10 - Real-time and Multimedia/10a - TS-Linux.md",
-    "Notes/Lesson 9 - System Support for Internet Scale Computing/9c - Content Delivery Networks.md",
-    "Notes/Lesson 11 - Security",
-    "Notes/Lesson 10 - Real-time and Multimedia",
-    "Notes/Lesson 9 - System Support for Internet Scale Computing",
-    "Notes/Lesson 8 - Failures, Consistency, and Recovery",
-    "Notes/Lesson 7 - Distributed Shared Memory and File Systems",
-    "Notes/Lesson 6 - Distributed Objects and Middleware",
-    "Notes/Lesson 5 - Communication Mechanisms in Distributed Systems"
+    "Notes/Untitled.md"
   ]
 }
