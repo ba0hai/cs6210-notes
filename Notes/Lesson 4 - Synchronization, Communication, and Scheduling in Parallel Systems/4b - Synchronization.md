@@ -377,23 +377,67 @@ Space complexity for this algorithm is O(N) for *every* lock you have in the pro
 In any well-structured multi-threaded program, even though we may have lots of threads executing in lots of processors, but only a small subset of these processors may contend for a lock. However, **this algorithm nevertheless anticipates the worst-case**, and **instantiates a data structure that may far exceed the size of the subset of processors** that contend for the lock. Do note that this is a result of using a **static**, and not a dynamic, data structure to maintain the sequence of threads. 
 ## 16. Link Based Queueing Lock (MCS lock)
 
-Like Andersen's array-based queueing lock, the link-based 
-
-```
-type qnode = record
-	next : ^qnode 
-	locked : Boolean
-
-procedure acquire_lock (L : ^lock, I: ^qnode) 
-	I -> next := nil 
-	
+A link-based queueing lock, or the MCS lock, utilizes a **linked-list** representation for our queue. We begin with the following implementation of the `qnode` data structure: 
+```cpp
+class qnode {
+	qnode next; // points to the successor
+	bool locked; // whether or not processor acquired the lock 
+}
 ```
 
+Every processor that requests access to a lock creates a new instance of `qnode`. 
+`locked` indicates whether or not the processor has acquired the lock, while the `next` field points to either `null` or the next processor that has requested access to the lock, and our lock is also of type `qnode`. 
+
+### Scenario 1 - Empty Linked List 
+![[L04A_02_03.png]]
+
+If no requests for the lock have been issued yet, our linked list will look like: 
+
+```
+[!LOCK] -> null
+```
+
+Here, the `->` symbol represents the `next` pointer. 
+### Scenario 2 - Single Request 
+![[L04A_02_03.png]]
+If only a single request has been made to acquire the lock, the linked list will take on the following updated appearance: 
+
+```
+[LOCK] -> [P1 (R)] -> null
+```
+
+In this scenario, processor 1 has acquired the lock, and so it is running (as indicated by the `R` symbol). More specifically, processor 1 has created an instance of `qnode`, and set its `next` field to `null`, to indicate that there is no one after it. At the same time, it has set the `lock`'s `next` pointer to itself. Thus, processor 1 can now access the critical section. 
 ## 17. Link Based Queueing Lock (cont)
-### Topic
+### Scenario 3 - Waiting on a request 
 
+![[L04A_02_04.png]]
+
+Say that while processor 1 has acquired the lock, another processor 2 has requested access next. 
+Processor 2 will **have to update the `next` pointers** of all the processors in the queue, as well as that of the `next` pointer in the `lock`. 
+We have to update the `next` pointer in processor 1 to point at the next processor 2, so that processor 1 will signal processor 2 once it has released the lock, and we update the `next` pointer in `lock` to point at `P2`. Here are the contents of each `qnode` object at this point: 
+```
+LOCK: 
+	next = P2 
+	locked = True
+
+P1: (running)
+	next = P2 
+	locked = True 
+
+P2: (spinning)
+	next = NULL 
+	locked = False
+```
+
+The `next` pointer in `lock` is always pointing to the **last** member of the linked list queue. Once `P2` has made these necessary changes, then it can continue to spin and wait for the previous processor `P1` to signal that it has released the lock. 
 ## 18. Link Based Queueing Lock (cont) 
-### Topic
+### The Lock Algorithm
+
+```cpp
+class Lock(){
+	
+}
+```
 
 ## 19. Link Based Queueing Lock (cont) 
 ### Topic
