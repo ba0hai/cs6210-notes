@@ -230,7 +230,7 @@ When the lock is not highly contended for, the processor will not delay for very
 Because these spinlock algorithms do not require cache access, they can be implemented on a non-cache coherent processor. Generally speaking, if there is a lot of contention, then static assignment of delay might be better than exponential delay with backoff--but in general, any delay implementation improves a naive spinlock algorithm. 
 ## 11. Ticket Lock
 
-If multiple processors are waiting on the lock, then the lock should be acquired by the processor which has waited the longest amount of time. However, the spinlock does not keep track of how long each thread has been waiting for the lock--the threads are **indistinguishable** from one another. 
+If multiple processors are waiting on the lock, then the lock should be acquired by the processor which has waited the longest amount of time. However, the spinlock does not keep track of how long each thread has been waiting for the lock--the threads are **indistinguishable** from one another. Therefore, spinlock **does not preserve fairness.**
 ### Ensuring fairness in lock acquisition 
 The ticket lock algorithm is simply the implementation of a ticketing system. 
 ```cpp
@@ -262,19 +262,19 @@ Our first two spinlock algorithms--read with test-and-set, as well as test-and-s
 To further illustrate the limitations of spinlock algorithms, consider the following example. Say that, in a set of N threads ($T_{1}...T_{n}$). Say that $T_1$ has acquired a lock. As per the spinlock algorithms, to some extent the remaining threads $T_2$ to $T_n$ are now waiting on the lock to be released. However, **only one thread will be able to acquire the lock after $T_1$ has released it.** Why should more than one thread contend for the lock? 
 
 Ideally, when $T_1$ releases the lock, it will signal ONLY one other lock between $T_2$ and $T_n$ to retrieve the next thread, rather than signalling all $n-1$ threads at the same time.  It is this idea that lays the foundation for **queueing locks**. 
-## 13. Array Based Queueing Lock 
+## 13. Array Based Queueing Lock (Andersen's lock)
 
 ![[L04_13_A.png]]
 
 This is also known as **Andersen's lock**. 
 
-First, associated with each lock $L$ is an **array of flags** `flags`. The size of this array `flags` is equal to the **number of processes in the SMP**. If you have an $N$-way multiprocessor, then you have $N$ elements in the circular flags array. This flags array serves as a circular queue for enqueueing the requesters that are requesting access to lock $L$. 
+First, associated with each lock $L$ is an **queue of flags** `flags`. The size of this queue `flags` is equal to the **number of processes in the SMP**. If you have an $N$-way multiprocessor, then you have $N$ elements in the circular flags array. This flags array serves as a circular queue for enqueueing the requesters that are requesting access to lock $L$. 
 
-Each element in this `flags` array can be in one of two states: 
+Each element in this `flags` queue can be in one of two states: 
 1. `has_lock` - whichever processor that happens to be waiting on this slot is waiting on a particular slot has the lock $L$.
-2. `must_wait` - if the processor can only use `must_wait` as an entrypoint into the `flags` array, then this processor must wait on the lock $L$. 
+2. `must_wait` - if the processor can only use `must_wait` as an entrypoint into the `flags` queue, then this processor must wait on the lock $L$. 
 
-There can be exactly **one** processor that can be in the `has_lock` state, while all other processors are in the `must_wait` state. This is because the lock $L$ is mutually exclusive. In order to initialize the lock, we have to initialize the array data structure `flags`, which marks **one** slot as `has_lock` while marking the others as `must_wait`. 
+There can be exactly **one** processor that can be in the `has_lock` state, while all other processors are in the `must_wait` state. This is because the lock $L$ is mutually exclusive. In order to initialize the lock, we have to initialize the queue data structure `flags`, which marks **one** slot as `has_lock` while marking the others as `must_wait`. 
 
 One important note: the slots are **not** statically associated with any processor. While there is a unique spot available **for every waiting processor**, they are not statically assigned to the processor at run-time. 
 
@@ -282,7 +282,7 @@ One important note: the slots are **not** statically associated with any process
 
 ### The `queuelast` variable
 
-The `queuelast` variable points at the next open slot in the `flags` array. Each time a processor requests a lock, the `queuelast` variable is incremented once. 
+The `queuelast` variable points at the next open slot in the `flags` queue. Each time a processor requests a lock, the `queuelast` variable is incremented once. 
 
 |             |                                      |                                                          |      |      |      |      |      |      |      |
 | ----------- | ------------------------------------ | -------------------------------------------------------- | ---- | ---- | ---- | ---- | ---- | ---- | ---- |
@@ -349,13 +349,45 @@ This updates our array to the following state:
 
 Recall that the `flags` array is a **circular** queue. This means that the state of `HL` is 'circled' around all of the available slots of the array from start to finish. When the predecessor of $P_{mine}$ acquires the lock, the state of the array looks like: 
 
-|             |           |       |           |                                        |               |                                                          |      |      |      |
-| ----------- | --------- | ----- | --------- | -------------------------------------- | ------------- | -------------------------------------------------------- | ---- | ---- | ---- |
-| **idx**     | 0         | 1     | 2         | 3                                      | 4             | 5                                                        | 6    | 7    | 8    |
-| **state**   | `MW`      | `MW`  | `MW`      | `HL`                                   | `MW`          | `MW`                                                     | `MW` | `MW` | `MW` |
-| **pointer** | $P_1$<br> | $P_x$ | $P_{x+1}$ | $P_{x+2}$<br>current<br>lock<br>holder | $P_{current}$ | `queuelast`<br>future requ<br>-estors must<br>queue here |      |      |      |
+|             |           |       |           |                                        |            |                                                          |      |      |      |
+| ----------- | --------- | ----- | --------- | -------------------------------------- | ---------- | -------------------------------------------------------- | ---- | ---- | ---- |
+| **idx**     | 0         | 1     | 2         | 3                                      | 4          | 5                                                        | 6    | 7    | 8    |
+| **state**   | `MW`      | `MW`  | `MW`      | `HL`                                   | `MW`       | `MW`                                                     | `MW` | `MW` | `MW` |
+| **pointer** | $P_1$<br> | $P_x$ | $P_{x+1}$ | $P_{x+2}$<br>current<br>lock<br>holder | $P_{mine}$ | `queuelast`<br>future requ<br>-estors must<br>queue here |      |      |      |
 
-## 16. Link Based Queueing Lock 
+Once $P_{x+2}$ performs the `unlock`, it will set the state of the slot $P_{mine}$ to `HL`, indicating that the processor $P_{mine}$ has now acquired the lock and can enter the critical section to perform its necessary modifications. 
+
+### Advantages of Array-Based Queueing Lock 
+
+#### 1. There is only one atomic operation performed per critical section.
+Only one atomic operation, `fetch_and_increment`, needs to be executed in order to acquire the lock. 
+
+#### 2. Fairness is preserved. 
+Lock acquisition is provided sequentially based upon the order of threads entering the `flags` array.
+
+#### 3. Reduced network contention. 
+Threads spin on their own private copy of their own variable in their own caches. There is less network contention as only one thread is notified when the lock is released (as opposed to a large pool of threads), compared with the ticket lock algorithm. 
+
+### Disadvantages of Array-Based Queueing Lock 
+
+#### 1. The size of the data structure is the same size as the number of processors in the multiprocessor. TLDR: Excess space complexity.
+
+Space complexity for this algorithm is O(N) for *every* lock you have in the program. A large-scale multiprocessor with dozens of processors can lead to excessive memory overhead. 
+
+In any well-structured multi-threaded program, even though we may have lots of threads executing in lots of processors, but only a small subset of these processors may contend for a lock. However, **this algorithm nevertheless anticipates the worst-case**, and **instantiates a data structure that may far exceed the size of the subset of processors** that contend for the lock. Do note that this is a result of using a **static**, and not a dynamic, data structure to maintain the sequence of threads. 
+## 16. Link Based Queueing Lock (MCS lock)
+
+Like Andersen's array-based queueing lock, the link-based 
+
+```
+type qnode = record
+	next : ^qnode 
+	locked : Boolean
+
+procedure acquire_lock (L : ^lock, I: ^qnode) 
+	I -> next := nil 
+	
+```
 
 ## 17. Link Based Queueing Lock (cont)
 ### Topic

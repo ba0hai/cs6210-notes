@@ -4,7 +4,6 @@
 
 ## 3. Counting Barrier 
 
-
 ## 4. Sense Reversing Barrier 
 
 ## 5. Tree Barrier 
