@@ -433,6 +433,8 @@ The `next` pointer in `lock` is always pointing to the **last** member of the li
 ## 18. Link Based Queueing Lock (cont) 
 ### The Lock Algorithm
 
+A number of 
+
 ```cpp
 class Lock(){
 	
