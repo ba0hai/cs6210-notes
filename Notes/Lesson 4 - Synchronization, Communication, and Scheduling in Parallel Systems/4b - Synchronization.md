@@ -433,16 +433,144 @@ The `next` pointer in `lock` is always pointing to the **last** member of the li
 ## 18. Link Based Queueing Lock (cont) 
 ### The Lock Algorithm
 
-A number of 
+The `Lock` algorithm takes two arguments--the dummy node associated with the lock `LOCK`, and the `qnode` to be enqueued into the linked list.
 
 ```cpp
-class Lock(){
-	
+class Lock(qnode Lock, qnode I){
+	I->next = null;
+	qnode predecessor = fetch_and_store(Lock, I); // atomically retrieve the last node that Lock points to 
+	if (predecessor != null) {
+		// queue was non-empty 
+		I->locked = true; 
+		predecessor->next = I; 
+		while (I->locked); // spin on I->locked, and await signal
+	}
 }
 ```
 
-## 19. Link Based Queueing Lock (cont) 
-### Topic
+For example, here is the transition that takes place when `P2` tries to request access from `P1` from the figure above. 
 
+![[Pasted image 20241220150754.png]]
+
+The arrows above highlighted in red represent the fields that **must** be updated when enqueueing a new request to the lock. 
+
+Note that for `P2` to be successfully enqueued, pointer that was pointing at the previous node and pointing it to `P2`, then I am taking the `next` pointer of the previous node and pointing it to `P2`. These steps must happen atomically. In order to facilitate these atomic steps, we will implement `fetch-and-store` with two arguments. For example: `fetch_and_store(L, I)` will return what **used to be contained in `L->next`**. What used to be contained in `L->next` was `P1`, which will be the predecessor to `I`. At the same time, it is storing into `L` a **pointer to the new node `I`**. 
+
+## 19. Link Based Queueing Lock (cont) 
+### Unlock Algorithm 
+
+Now that we have set `P1`'s pointer at `P2`, and `P2` is spinning on the `locked` field. How will we update the `P2->locked` field to indicate that the `Lock` is now available for `P2`? Naturally, `P2`'s predecessor, `P1`, will need to update that field with the `unlock` procedure. 
+
+```cpp
+class Unlock(qnode Lock, qnode I) {
+	qnode successor = I->next;
+	I->next = null; // remove qnode I from the linked list
+	successor->locked == false; // indicate that the lock is now released
+}
+```
+
+There are two steps that the `unlock` procedure must perform-
+1. It must **remove the qnode `I`** from the linked list, and 
+2. signal `I`'s successor that the lock is now released. 
+
+`unlock` takes two arguments--one being the `Lock`, and then the node that is making the unlock call (in our example, it's `P1`). Because `P1->next` points at `P2`, we will use that link to signal to `P2` that the `Lock` has been released. Because `P2` has been spinning on `P1->locked`, the moment that this guarded data variable changes, `P2` will be signaled to retrieve the lock. 
+
+![[Pasted image 20241220153449.png]]
+
+Note, however, that when `P2` calls the `unlock` procedure now, there are no successors to `P2` that will be signaled. How does this change the `unlock` procedure? 
+
+We must set the qnode corresponding to `Lock` to `null`, to indicate that there is no requester in the queue waiting for the lock. But what happens if a new request is presently forming? 
+
+### Race Conditions 
+
+![[Pasted image 20241220155001.png]]
+
+Say that we have a new requester, `P3`, which performs `lock` at the same time that `P2` is performing `release`. At the exact moment that `P3` performs `fetch_and_store()`, P3 will set `Lock->next->next`'s pointer to `P3`, and `Lock->next` to `P3`.  `Lock->next` corresponds to `P2`, since `P2` has not finished executing the `release` function and is still part of the linked list at this moment--but `Lock->next` will now attempt to point to `P3`, and `P2` will be unable to remove itself fully from the linked list. This is the race condition that can take place during the `release-lock` operation.  
 ## 20. Link Based Queueing Lock (cont)
-### Topic
+### Removing the race condition potential 
+
+In order to handle the race condition that was discussed in slide 19, we should have `P2` check for **whether or not a new request is being formed** before performing `release`. In other words, there **must be an atomic way of setting `Lock` to `null` if `Lock` is pointing to `P2`.** 
+
+In order to define the atomic instruction, we need to determine the invariant condition that we will branch off of. This invariant condition will be a **conditional store** operation, which will only store a value to a given variable **if** some condition is satisfied. Let's see whether we can define this condition. 
+```
+if L->next == P2: set L->next to null 
+else continue 
+```
+
+The primitive for our atomic **conditional store** operation will be the `compare_and_swap` atomic function. 
+
+```python
+def compare_and_swap(L, I, arg1): 
+	if (L == I): 
+		L == arg1
+		return True
+	else: 
+		return False
+```
+
+Here, compare and swap will take 3 arguments--`L, I, arg1`. If `L==I`, then we will set `L` to be `arg1` and return `true`. Otherwise, it will not do anything, and return `false`.
+
+## 21. Link-based Queueing Lock (cont) 
+
+### Atomic `release` with `compare_and_swap`. 
+
+When we attempt to `release` a lock while a new request is being formed, a race condition will be encountered if updating the `next` link belonging to the qnode that corresponds to `Lock` conflicts with the same update being made to the `next` link is performed during the `acquire` operation in the new request. 
+
+We can instead replace the dequeue operation being executed in the `release` procedure with a `compare_and_swap` atomic operation in order to avoid the race condition entirely. 
+
+```cpp 
+class Unlock(qnode Lock, qnode I) {
+	if (I->next == null) { // no known successor 
+		if (compare_and_swap(L, I, null)) // replace L's value with null
+			return // note that compare_and_swap returns true or false 
+		while (I->next) == null; // spin until new request finishes since false
+	I->next->locked == false; // indicate that the lock is now released
+	}
+}
+```
+
+Here, if `compare_and_swap` fails, this indicates that **a new request is being formed** and so, `I` will spin on `I->next` becoming non-null, or pointing to the new request. Recall that the new request performing the `Lock` operation will retrieve the addresses of `I`. **In other words, `I` is spinning until the new request has completed performing the `acquire` operation.** Afterwards, the node will emerge from its spin and **indicate to the new requester** that it has received access of the lock. 
+
+## 22. Linked Based Queueing Lock (cont) 
+
+There are many subtleties behind implementing the algorithms for the link-based queueing lock, as well as Andersen's lock, in the kernel. The linked-list bassed queueing lock and the Andersen queueing lock both required, for instance, a new `write` instruction, implemented in the form of `compare_and_swap`, `fetch_and_store`, and `fetch_and_increment`. 
+
+**If these atomic instructions are not available in some given architecture**, then **they will have to be simulated** using the default `test-and-set` instruction included on these architectures. 
+
+## 23. Link Based Queueing Lock (cont) 
+
+### Advantages 
+The advantages are similar to Andersen's queueing lock--link-based queueing locks are fair, for example, and every spinning process spins on a unique copy of its own cached copy of the guarded variable, which reduces excess contention on the signal. 
+
+Additionally, exactly 1 process is signaled when a lock is released. There is only one atomic operation per critical section (save for the corner case, which requires a second atomic operation). The space complexity, however, of this data structure is **dynamically-defined**, and is a function of **how many processors are requesting access to the lock**, as opposed to how many processors in total have been implemented in the given architecture. Therefore, **the space-complexity of this algorithm** improves significantly upon the space-complexity of the Andersen's lock algorithm. 
+
+However, there is more **linked-list maintenance overhead** that is associated with making a lock or unlock request. Andersen's array-based queue lock can be faster than the linked-list based algorithm for this reason. Performance can be further affected if the necessary atomic instructions are not available to the architecture. This drawback also applies to Andersen's array-based queue lock. 
+
+While both of these algorithms are better for scalability, if the processor only has `test-and-set`, then the OS designer must rely only on the exponential backoff algorithms to handle synchronization in order to maximize performance. 
+
+## 24. Quiz - Algorithm Grading 
+
+Grade the algorithms by filling in the following table: 
+
+| Algorithm     | Latency | Contention | Fair | Spin | RMW ops per CS | Space ovhd | Signal only one on release |
+| ------------- | ------- | ---------- | ---- | ---- | -------------- | ---------- | -------------------------- |
+| Spin on T&S   |         |            |      |      |                |            |                            |
+| Spin on read  |         |            |      |      |                |            |                            |
+| Spin w/ delay |         |            |      |      |                |            |                            |
+| Ticket lock   |         |            |      |      |                |            |                            |
+| Andersen      |         |            |      |      |                |            |                            |
+| MCS           |         |            |      |      |                |            |                            |
+
+---
+
+### Answer 
+
+| Algorithm     | Latency | Contention | Fair | Spin | RMW ops per CS | Space ovhd | Signal only one on release |
+| ------------- | ------- | ---------- | ---- | ---- | -------------- | ---------- | -------------------------- |
+| Spin on T&S   | low     | high       | N    | S    | high           | low        | N                          |
+| Spin on read  | low     | med        | N    | S    | medium         | low        | N                          |
+| Spin w/ delay | low++   | low+       | N    | S    | low+           | low        | N                          |
+| Ticket lock   | low     | low++      | Y    | S    | low++          | low+       | N                          |
+| Andersen      | low+    | low        | Y    | P    | 1              | high       | Y                          |
+| MCS           | low+    | low        | Y    | P    | 1 (max 2)      | med        | Y                          |
+|               |         |            |      |      |                |            |                            |
