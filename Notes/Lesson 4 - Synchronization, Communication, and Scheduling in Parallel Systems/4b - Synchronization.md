@@ -450,7 +450,7 @@ class Lock(qnode Lock, qnode I){
 
 For example, here is the transition that takes place when `P2` tries to request access from `P1` from the figure above. 
 
-![[Pasted image 20241220150754.png]]
+![[L04A_02_05.png]]
 
 The arrows above highlighted in red represent the fields that **must** be updated when enqueueing a new request to the lock. 
 
@@ -475,7 +475,7 @@ There are two steps that the `unlock` procedure must perform-
 
 `unlock` takes two arguments--one being the `Lock`, and then the node that is making the unlock call (in our example, it's `P1`). Because `P1->next` points at `P2`, we will use that link to signal to `P2` that the `Lock` has been released. Because `P2` has been spinning on `P1->locked`, the moment that this guarded data variable changes, `P2` will be signaled to retrieve the lock. 
 
-![[Pasted image 20241220153449.png]]
+![[L04A_02_06.png]]
 
 Note, however, that when `P2` calls the `unlock` procedure now, there are no successors to `P2` that will be signaled. How does this change the `unlock` procedure? 
 
@@ -483,7 +483,7 @@ We must set the qnode corresponding to `Lock` to `null`, to indicate that there 
 
 ### Race Conditions 
 
-![[Pasted image 20241220155001.png]]
+![[L04A_02_07.png]]
 
 Say that we have a new requester, `P3`, which performs `lock` at the same time that `P2` is performing `release`. At the exact moment that `P3` performs `fetch_and_store()`, P3 will set `Lock->next->next`'s pointer to `P3`, and `Lock->next` to `P3`.  `Lock->next` corresponds to `P2`, since `P2` has not finished executing the `release` function and is still part of the linked list at this moment--but `Lock->next` will now attempt to point to `P3`, and `P2` will be unable to remove itself fully from the linked list. This is the race condition that can take place during the `release-lock` operation.  
 ## 20. Link Based Queueing Lock (cont)
