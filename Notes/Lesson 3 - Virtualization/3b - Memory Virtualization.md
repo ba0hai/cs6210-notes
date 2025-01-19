@@ -4,15 +4,27 @@ We will now dig deeper into what needs to be done in the systems software stack 
 
 ## 2. Memory Hierarchy 
 
-I'm sure by now this picture is very familiar to you. Showing you the memory hierarchy going all the way from the CPU to the virtual memory on the disk. You have several levels of caches of course the TLB that holds address translations for you virtual to physical and you have the main memory and then the virtual memory on the disk. Now caches are physically tagged and so you don't need to do anything special about them from the point of your virtualizing the memory hierarchy. The really thorny issue is handling virtual memory namely the virtual address to the physical memory mapping which is the key functionality of the memory management subsystem in any operating system.
+I'm sure by now this picture is very familiar to you. Showing you the memory hierarchy going all the way from the CPU to the virtual memory on the disk. You have several levels of caches of course the TLB that holds address translations for you virtual to physical and you have the main memory and then the virtual memory on the disk. Now caches are physically tagged and so you don't need to do anything special about them from the point of your virtualizing the memory hierarchy. The really thorny issue is handling **virtual memory**, namely the virtual address to the physical memory mapping which is the key functionality of the memory management subsystem in any operating system.
 
 ## 3. Memory Subsystem Recall 
 
-Recall that in any modern operating system each process is in it's own protection domain. And usually a separate hardware address space. And the operating system maintains a page table on behalf of each of these processes. The page table is the operating system's data structure that holds the mapping between the virtual page numbers and the physical pages where those virtual pages are contained in the main memory of the hardware. The physical memory of course is contiguous starting from zero to whatever is the maximum limit of the hardware capabilities are. But the virtual address pace of a given processor course is not contiguous in physical memory but it is scattered all over the physical memory. And that's in some sense the advantage that you get with page based memory management. That a process notion of which virtual address being contiguous is not necessarily reflected in the physical mapping of those virtual pages to the physical pages in the main memory.
+Recall that in any modern operating system each process is in it's own protection domain. And usually a separate hardware address space. And the operating system maintains a page table on behalf of each of these processes. 
+
+The page table is the operating system's data structure that holds the mapping between the virtual page numbers and the physical pages where those virtual pages are contained in the main memory of the hardware. 
+
+The physical memory of course is contiguous starting from zero to whatever is the maximum limit of the hardware capabilities are. 
+
+But the virtual address pace of a given processor course is not contiguous in physical memory but it is scattered all over the physical memory. 
+
+And that's in some sense the advantage that you get with **page based memory management**. That a process notion of which virtual address being contiguous is not necessarily reflected in the physical mapping of those virtual pages to the physical pages in the main memory.
 
 ## 4. Memory Management and Hypervisor 
 
-In the virtualized set up the hypervisor sits between the guest operating system and the hardware. So the picture gets a little bit complicated. Inside each one of these operating systems of course they use a level processes and each process is in its own protection domain. What that means is that in each of these operating systems there is a distinct page table that the operating system maintains on behalf of the processes that are running in that operating system similarly in this case. Does the hypervisor know about the page tables maintained on behalf of the processes that are running in each one of these individual operating systems? The answer is no. Windows and Linux are simply protection domains distinct from one another so far as the hypervisor is concerned. The fact that each of Windows and Linux within them contain application of a processes is something that the hypervisor doesn't know about at all.
+In the virtualized set up the hypervisor sits between the guest operating system and the hardware. So the picture gets a little bit complicated. 
+
+Inside each one of these operating systems of course they use a level processes and each process is in its own protection domain. 
+
+What that means is that in each of these operating systems there is a distinct page table that the operating system maintains on behalf of the processes that are running in that operating system similarly in this case. Does the hypervisor know about the page tables maintained on behalf of the processes that are running in each one of these individual operating systems? The answer is no. Windows and Linux are simply protection domains distinct from one another so far as the hypervisor is concerned. The fact that each of Windows and Linux within them contain application of a processes is something that the hypervisor doesn't know about at all.
 
 ## 5. Memory Manager Zoomed Out 
 

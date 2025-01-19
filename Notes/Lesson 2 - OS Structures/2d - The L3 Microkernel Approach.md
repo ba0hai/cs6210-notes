@@ -32,7 +32,6 @@ For example, consider a file system service. A system service like the file syst
 
 > **Why must they be protected procedure calls?** Because these calls are going across address spaces. This action is more expensive than simple or normal procedure calls–in fact, protected procedure calls can be 100 times more expensive than standard procedure calls. This is because **each of these services, in a micro-kernel based design,** is assumed to be **implemented in its own address base** to **protect the integrity of each of these system services**.  why are protector procedure calls that much more expensive than normal procedure calls. 
 
-
 > **Why are protected procedure calls more expensive than normal procedure calls?** This is where the ***implicit cost*** of border crossings is incurred, as we're losing locality both in terms of **address translations contained in the TLB** as well as the **contents of the cache** that the processor uses in order to access memory. Regardless as to whether the procedure call starts from the user address piece and goes to the kernel address piece, or between one hardware address piece representing a particular system service to the hardware address space of another system service, these repeated border crossings result in making protective procedure calls between the user space and kernel space that much more expensive.
 
 ## 4. L3 Microkernel

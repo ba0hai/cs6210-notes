@@ -23,10 +23,10 @@ The Hydra operating system in 1981 is one example of interest in extensibility s
 It provided kernel mechanisms for resource allocations. 
 
 It had capability-based resource access. 
-- Capability has a special connotation in operating systems. It refers to an entity that can be passed from one tot he other. Cannot be forged, can be verified--all of the things that you want in order to make sure that system integrity is not compromised. Capability captures these notions. 
+- Capability has a special connotation in operating systems. It refers to an entity that can be passed from one to the other. Cannot be forged, can be verified--all of the things that you want in order to make sure that system integrity is not compromised. Capability captures these notions. 
 - Capability was a heavyweight mechanism in terms of implementing it efficiently in an operating system. 
 
-Resource managers were built as course-grained objects to reduce border-crossing. 
+**Resource managers** were built as **course-grained objects** to reduce border-crossing. 
 - Border-crossing in the Hydra system meant that you have to pass capability from one object to another, and validate capability for entering a particular, etc. 
 - For that reason, Hydra used coarse-grained objects to implement resource managers. That way, it can reduce border-crossing overhead. 
 - This limits opportunities for customization and extensibility. 
@@ -51,12 +51,12 @@ This co-location also means that we avoid the border crossing, which is said to 
 
 If we are going to co-locate the kernel and extensions in the same hardware address space, isn't that comproomising on protection? (See: disadvantages on DOS-like structures).  
 
-The approach that SPIN took is to rely on the characteristics of a strongly-typed programming language (Modular 3) so that the compiler can enforce the modularity that we need in order to give guarantees for protection. 
-- By using a strongly-typed language, the kernel is able to provide well-defined interfaces (think of declaring function types in a header file, separated from the implementations of these functions in a software project). 
+The approach that SPIN took is to **rely on the characteristics of a strongly-typed programming language (Modular 3)** so that the compiler can **enforce the modularity** that we need in order to give guarantees for protection. 
+- By using a strongly-typed language, the kernel is able to provide **well-defined interfaces** (think of declaring function types in a header file, separated from the implementations of these functions in a software project). 
 	- In this case, an operating system is a complex piece of software. Why not use a strongly-typed language to build an operating system? That is the main foundation for the SPIN approach. 
 
 When you use a strongly typed language, you cannot cheat data structure types. 
-- Data abstractions provided by the programming langauge, such as an object, serve as containers for logical protection domains. 
+- Data abstractions provided by the programming langauge, such as an object, serve as **containers** for logical protection domains. 
 	- We are no longer relying on hardware address spaces to provide the protection between services and the kernel. 
 	- The kernel only provides the interfaces, while these logic protection domains actually implement the functionality that is enshrined in those interface functions. 
 	- As a result, there can be several implementations for these interface functions. Applications can dynamically bind to different implementations of the same interface functions, which leads to different instantiations of specific system components, providing the flexibility that we want in constructing an operating system. 
@@ -67,7 +67,7 @@ We are writing on the characteristics of a strongly-typed programming language w
 
 ## 4. Logical Protection Domains 
 
-Modula 3 is a strongly-typed language with built-in safety and encapsulation mechanisms.
+Modula 3 is a **strongly-typed language** with built-in safety and encapsulation mechanisms.
 - It does automatic management of memory--so there are no memory leaks.
 - Data abstractions supported in Modula 3: 
 	- Objects
@@ -82,9 +82,9 @@ Modula 3 is a strongly-typed language with built-in safety and encapsulation mec
 
 What you can do from outside the object is what the entry point methods inside the object allow and nothing more. We are gating the safety property of a monolithic kernel without having to put system code in a hardware address space. 
 
-In other words, the logical protection domains give us two of our primary goals in operating systems design: protection and performance. What about flexibility?
+In other words, **the logical protection domains give us two of our primary goals in operating systems design: protection and performance.** What about flexibility?
 
-Flexibility is provided through the generic interface mechanism, which allows us to have multiple instances of the same service. A given application may be able to exploit the different instances of available services which cater to the same generic interface.
+Flexibility is provided through the **generic interface mechanism**, which allows us to have multiple instances of the same service. A given application may be able to exploit the different instances of available services which cater to the same generic interface.
 
 And objects that implement specific services can be at the desired granularity of the system designer, where they can be fine-grained, or a collection. 
 - For example, individual hardware resources can be a fine-grained object, such as a page frame and its relevant functions 
@@ -215,9 +215,9 @@ We now know what SPIN provides for building an operating system. One can build e
 But an extensible operating system should NOT dictate how these services should be implemented. SPIN provides interface procedures for implementing these services in the operating system. 
 ### Physical Memory 
 
-Native operating systems, such as Linux or Windows, manages the physical memory that is available from the hardware. SPIN wants to allow extensions to manage physical memory allocated to them in whatever fashion they choose to. The macro-allocation of a bunch of physical memory to an extension is not within scope of this discussion, but assume that the allocation of a bunch of physical memory happens when an extension starts up. 
+Native operating systems, such as Linux or Windows, manages the physical memory that is available from the hardware. **SPIN wants to allow extensions to manage physical memory allocated to them in whatever fashion they choose to**. The **macro-allocation** of a bunch of physical memory to an extension is not within scope of this discussion, but assume that the allocation of a bunch of physical memory happens when an extension starts up. 
 
-The management of the pre-allocated physical memoryby the extension is discussed below. 
+The management of the pre-allocated physical memory by the extension is discussed below. 
 
 Memory management functionality is provided by interface functions, or header files, provided by SPIN, such as: 
 - Physical address
@@ -246,7 +246,7 @@ For example, say we are running Linux and Vista as two extensions on top of SPIN
 #### STRAND 
 To support the concept of threads in the operating system and management of time, SPIN provides an abstraction called STRAND. 
 
-The actual operating systems that extend SPIN will have threads map to strands.A strand is the unit of scheduling that SPIN's global scheduler uses, but the semantics of strand is entirely decided by the extension. 
+The actual operating systems that extend SPIN will have threads map to strands. A strand is the unit of scheduling that SPIN's global scheduler uses, but the semantics of strand is entirely decided by the extension. 
 - For example, for an implementation of pthreads, the semantics of the strand will simply be the semantics of pthreads' scheduler. 
 
 There are also event handlers that facilitate the scheduling which needs to happen inside of a given extension. For CPU scheduling, SPIN provides event handlers for `block`, `unblock`, `checkpoint`, and `resume`. 

@@ -1,0 +1,5 @@
+Kishore makes frequent references to "doctoring the client thread" throughout this lesson. What he is actually doing is **switching the protection domains** of an executing thread from **client to server address space** and vice versa. This is done to **start executing a procedure** that is **visible** to the given address space alone. 
+
+We can make sure the **client thread starts executing in the address space of the server**, and that the PC the client thread starts executing in would correspond directly to the **entry point procedure** defined by the procedure descriptor. 
+
+When the server is communicating the results of the procedure to the client, the kernel **can doctor the client thread once again** to execute within the address space of the client, using the return address and the known-address space of the client. 
