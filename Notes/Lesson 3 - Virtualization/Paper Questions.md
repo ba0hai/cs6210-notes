@@ -15,9 +15,19 @@
 
 ## [[Memory Resource Management in VMware ESX Server.pdf]]
 
-1) What is the difference between VMWare workstation and VMware ESX server? Discuss how OS calls from a user process running inside a VM are handled in the two cases. 
-2) Discuss the difference in memory virtualization in VMware and Xen. 
-3) What are the approaches to reclaiming memory in a virtualized over-subscribed server? Discuss the pros and cons of each approach. 
-4) Describe how ballooning may be used with Xen. 
-5) Explain how page sharing works in VMWare. 
-6) Explain the allocation policy of VMWare.
+What is the difference between VMWare workstation and VMware ESX server? Discuss how OS calls from a user process running inside a VM are handled in the two cases. 
+
+
+### Discuss the difference in memory virtualization in VMware and Xen. 
+
+In VMware, memory virtualization is handled by **shadow page tables**.  Every time a guest operating system attempts to update a page table, this induces a **trap**, because updating a page table is a privileged operation. This trap is a call to the hypervisor, which manages a **shadow page table** that maintains the mappings between virtual page number (VPN), guest OS physical page number (PPN), and machine page number (MPN). 
+
+Memory virtualization thus involves two levels of memory indirection in VMWare. 
+
+### What are the approaches to reclaiming memory in a virtualized over-subscribed server? Discuss the pros and cons of each approach. 
+
+### Describe how ballooning may be used with Xen. 
+
+### Explain how page sharing works in VMWare. 
+
+### Explain the allocation policy of VMWare.
